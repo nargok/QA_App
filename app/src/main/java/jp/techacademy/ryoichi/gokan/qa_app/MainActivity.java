@@ -34,12 +34,24 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
+                // ジャンルを選択していない場合(mGemre = 0)はエラーを表示するだけ
+                if (mGenre == 0) {
+                    Snackbar.make(view, "ジャンルを選択してください", Snackbar.LENGTH_LONG).show();
+
+                    return;
+                }
+
                 // ログイン済のユーザーを取得する
                 FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
                 // ログインしていなければログイン画面に遷移させる
                 if (user == null) {
                     Intent intent = new Intent(getApplicationContext(), LoginActivity.class);
+                    startActivity(intent);
+                } else {
+                    Intent intent = new Intent(getApplicationContext(), QuestionSendActivity.class);
+                    intent.putExtra("genre", mGenre);
                     startActivity(intent);
                 }
             }

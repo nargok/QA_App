@@ -19,19 +19,19 @@ public class Answer implements Serializable {
         mAnswerUid = AnswerUid;
     }
 
-    public String getmBody() {
+    public String getBody() {
         return mBody;
     }
 
-    public String getmName() {
+    public String getName() {
         return mName;
     }
 
-    public String getmUid() {
+    public String getUid() {
         return mUid;
     }
 
-    public String getmAnswerUid() {
+    public String getAnswerUid() {
         return mAnswerUid;
     }
 

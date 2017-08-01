@@ -60,6 +60,7 @@ public class QuestionDetailListAdapter extends BaseAdapter {
     public View getView(int position, View convertView, ViewGroup parent) {
 
         if (getItemViewType(position) == TYPE_QUESTION) {
+            // 質問欄
             if (convertView == null) {
                 convertView = mLayoutInflater.inflate(R.layout.list_question_detail, parent, false);
             }
@@ -78,7 +79,9 @@ public class QuestionDetailListAdapter extends BaseAdapter {
                 ImageView imageView = (ImageView) convertView.findViewById(R.id.imageView);
                 imageView.setImageBitmap(image);
             }
+            // TODO お気に入りボタンの見た目を制御する処理を入れる
         } else {
+            // 回答欄
             if (convertView == null) {
                 convertView = mLayoutInflater.inflate(R.layout.list_answer, parent, false);
             }

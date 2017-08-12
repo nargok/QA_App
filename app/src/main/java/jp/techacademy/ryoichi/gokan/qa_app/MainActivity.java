@@ -13,10 +13,12 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ListView;
 
 import com.google.firebase.auth.FirebaseAuth;
@@ -29,6 +31,7 @@ import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -46,34 +49,69 @@ public class MainActivity extends AppCompatActivity {
         @Override // 質問が追加されたときの処理
         public void onChildAdded(DataSnapshot dataSnapshot, String s) {
             HashMap map = (HashMap) dataSnapshot.getValue();
-            String title = (String) map.get("title");
-            String body = (String) map.get("body");
-            String name = (String) map.get("name");
-            String uid = (String) map.get("uid");
-            String imageString = (String) map.get("image");
-            byte[] bytes;
-            if (imageString != null) {
-                bytes = Base64.decode(imageString, Base64.DEFAULT);
-            } else {
-                bytes = new byte[0];
-            }
+            Log.d("QA App", "ジャンル: " + String.valueOf(mGenre));
 
-            ArrayList<Answer> answerArrayList = new ArrayList<Answer>();
-            HashMap answerMap = (HashMap) map.get("answers");
-            if (answerMap != null) {
-                for (Object key : answerMap.keySet()) {
-                    HashMap temp = (HashMap) answerMap.get((String) key);
-                    String answerBody = (String) temp.get("body");
-                    String answerName = (String) temp.get("name");
-                    String answerUid = (String) temp.get("uid");
-                    Answer answer = new Answer(answerBody, answerName, answerUid, (String) key);
-                    answerArrayList.add(answer);
+            // メニューでお気に入り以外を選択した場合
+            if (mGenre != 5) {
+                String title = (String) map.get("title");
+                String body = (String) map.get("body");
+                String name = (String) map.get("name");
+                String uid = (String) map.get("uid");
+                String imageString = (String) map.get("image");
+                byte[] bytes;
+                if (imageString != null) {
+                    bytes = Base64.decode(imageString, Base64.DEFAULT);
+                } else {
+                    bytes = new byte[0];
+                }
+
+                ArrayList<Answer> answerArrayList = new ArrayList<Answer>();
+                HashMap answerMap = (HashMap) map.get("answers");
+                if (answerMap != null) {
+                    for (Object key : answerMap.keySet()) {
+                        HashMap temp = (HashMap) answerMap.get((String) key);
+                        String answerBody = (String) temp.get("body");
+                        String answerName = (String) temp.get("name");
+                        String answerUid = (String) temp.get("uid");
+                        Answer answer = new Answer(answerBody, answerName, answerUid, (String) key);
+                        answerArrayList.add(answer);
+                    }
+                }
+
+                // お気に入りの設定
+                // 一旦お気に入りのリストを生成して
+                // お気に入りデータを取得した時にnullではなかったら、FireBaseのデータをセットする
+                ArrayList<String> favoritesArrayList = new ArrayList<String>();
+                ArrayList<String> favorites = new ArrayList<String>();
+                favorites = (ArrayList<String>) map.get("favorites");
+
+                if (favorites != null) {
+                    favoritesArrayList = favorites;
+                }
+
+                Question question = new Question(title, body, name, uid, dataSnapshot.getKey(), mGenre, bytes, answerArrayList, favoritesArrayList);
+                mQuestionArrayList.add(question);
+                mAdapter.notifyDataSetChanged();
+
+            } else {
+                // keyを取得する
+                for (Object key : map.keySet()) {
+                    String dataKey = key.toString();
+                    // コンテンツを取得する
+                    HashMap<String, String> hash = (HashMap<String, String>) map.get(dataKey);
+                    Question question = setArrayData(dataKey, hash);
+
+                    ArrayList<String> favoriteDatas = question.getFavorites();
+                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                    for (String favorite : favoriteDatas) {
+                        if (favorite.equals(uid)) {
+                            mQuestionArrayList.add(question);
+                            break;
+                        }
+                    }
+                    mAdapter.notifyDataSetChanged();
                 }
             }
-
-            Question question = new Question(title, body, name, uid, dataSnapshot.getKey(), mGenre, bytes, answerArrayList);
-            mQuestionArrayList.add(question);
-            mAdapter.notifyDataSetChanged();
         }
 
         @Override // 質問に対して回答が投稿されたとき
@@ -97,6 +135,14 @@ public class MainActivity extends AppCompatActivity {
                             question.getAnswers().add(answer);
                         }
                     }
+
+                    // お気に入りが登録されていれば一旦クリアして、FireBaseのお気に入りデータに入れ替える
+                    if (question.getFavorites() != null) {
+                        question.getFavorites().clear();
+                    }
+                    ArrayList<String> favoritesArrayList = (ArrayList<String>) map.get("favorites");
+                    question.setFavorites(favoritesArrayList);
+
                     mAdapter.notifyDataSetChanged();
                 }
             }
@@ -177,6 +223,9 @@ public class MainActivity extends AppCompatActivity {
                 } else if (id == R.id.nav_compter) {
                     mToolbar.setTitle("コンピューター");
                     mGenre = 4;
+                } else if (id == R.id.nav_favorite) {
+                    mToolbar.setTitle("お気に入り");
+                    mGenre = 5;
                 }
 
                 DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -192,11 +241,24 @@ public class MainActivity extends AppCompatActivity {
                 if (mGenreRef != null) {
                     mGenreRef.removeEventListener(mEventListener);
                 }
-                mGenreRef = mDatabaseReference.child(Const.ContentsPATH).child(String.valueOf(mGenre));
+
+                FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+                if (mGenre != 5) {
+                    // お気に入り以外を選んだ場合は、対象のジャンルの質問を取得する
+                    mGenreRef = mDatabaseReference.child(Const.ContentsPATH).child(String.valueOf(mGenre));
+                    fab.setVisibility(View.VISIBLE);
+                } else {
+                    // お気に入りを選んだ場合は、すべての質問を取得する
+                    mGenreRef = mDatabaseReference.child(Const.ContentsPATH);
+                    // お気に入りを選択した場合に質問投稿ボタンを使用不可にする
+                    fab.setVisibility(View.INVISIBLE);
+                }
+
                 mGenreRef.addChildEventListener(mEventListener);
 
                 return true;
             }
+
         });
 
         mDatabaseReference = FirebaseDatabase.getInstance().getReference();
@@ -241,5 +303,46 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    // Questionを返すようにしようと検討中　ジャンルを選ぶとtitle以下すべての値の取得ができていないため
+    private Question setArrayData(String dataKey, HashMap map) {
+        String title = (String) map.get("title");
+        String body = (String) map.get("body");
+        String name = (String) map.get("name");
+        String uid = (String) map.get("uid");
+        String imageString = (String) map.get("image");
+        String genre = (String) map.get("genre");
+        int genreInt = Integer.valueOf(genre);
+        byte[] bytes;
+        if (imageString != null) {
+            bytes = Base64.decode(imageString, Base64.DEFAULT);
+        } else {
+            bytes = new byte[0];
+        }
+
+        ArrayList<Answer> answerArrayList = new ArrayList<Answer>();
+        HashMap answerMap = (HashMap) map.get("answers");
+        if (answerMap != null) {
+            for (Object key : answerMap.keySet()) {
+                HashMap temp = (HashMap) answerMap.get((String) key);
+                String answerBody = (String) temp.get("body");
+                String answerName = (String) temp.get("name");
+                String answerUid = (String) temp.get("uid");
+                Answer answer = new Answer(answerBody, answerName, answerUid, (String) key);
+                answerArrayList.add(answer);
+            }
+        }
+
+        ArrayList<String> favoritesArrayList = new ArrayList<String>();
+        ArrayList<String> favorites = new ArrayList<String>();
+        favorites = (ArrayList<String>) map.get("favorites");
+
+        if (favorites != null) {
+            favoritesArrayList = favorites;
+        }
+
+        Question question = new Question(title, body, name, uid, dataKey, genreInt, bytes, answerArrayList, favoritesArrayList);
+        return question;
     }
 }

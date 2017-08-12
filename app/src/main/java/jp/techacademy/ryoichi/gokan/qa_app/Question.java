@@ -1,6 +1,7 @@
 package jp.techacademy.ryoichi.gokan.qa_app;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -54,19 +55,28 @@ public class Question implements Serializable {
         return mAnswerArrayList;
     }
 
-    public ArrayList<String> getmFavorites() { // お気に入り
+    public ArrayList<String> getFavorites() { // お気に入り
         return mFavoritesArrayList;
     }
 
-    public Boolean getmFavoriteFlag() {
+    public void setFavorites(ArrayList<String> favorites) {
+        this.mFavoritesArrayList = favorites;
+    }
 
-        // お気に入りにしたユーザーの中に、自分自身のIDがあればお気に入り登録済と判定する
-        for (String uid: mFavoritesArrayList){
-            if (uid == FirebaseAuth.getInstance().getCurrentUser().getUid()) {
-                mFavoriteFlag = true;
-                break;
+    public Boolean getFavoriteFlag() {
+        String currentUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        if (mFavoritesArrayList.size() != 0) {
+            // お気に入りにしたユーザーの中に、自分自身のIDがあればお気に入り登録済と判定する
+            for (String uid: this.mFavoritesArrayList){
+                if (uid.equals(currentUid)) {
+                    mFavoriteFlag = true;
+                    break;
+                }
             }
+        } else {
+            mFavoriteFlag = false;
         }
+
         return mFavoriteFlag;
     }
 
@@ -83,6 +93,5 @@ public class Question implements Serializable {
     }
 
 
-
-
 }
+
